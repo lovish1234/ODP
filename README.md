@@ -1,6 +1,6 @@
 # Optional Depth Module for MaskRCNN
 
-Authors: Jianjin Xu, Lovish Chum, Zhaoyang Wang
+*Joint work with Jianjin Xu and Zhaoyang Wang*
 
 This is the code base for reproducing the experiment.
 
