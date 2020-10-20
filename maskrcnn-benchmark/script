@@ -1,0 +1,115 @@
+### COCO Dataset
+
+# Single GPU training on COCO
+python tools/train_net.py --config-file "configs/e2e_mask_rcnn_R_50_FPN_1x.yaml" MODEL.RPN.FPN_POST_NMS_TOP_N_TRAIN 16000 DTYPE "float16"
+
+# Multiple GPU training on COCO
+export NGPUS=4
+export CUDA_VISIBLE_DEVICES=0,1,2,3
+python -m torch.distributed.launch --nproc_per_node=$NGPUS tools/train_net.py --config-file "configs/e2e_mask_rcnn_R_50_FPN_1x.yaml" MODEL.RPN.FPN_POST_NMS_TOP_N_TRAIN 16000 DTYPE "float16"
+
+# Single GPU testing on Baseline
+python tools/test_net.py --config-file "configs/NYUBaseline.yaml" --ckpt pretrained/rgb_baseline_26_imagenet.pth --use_depth 0
+
+### NYUv2 Dataset - RGB
+
+
+# Single GPU training on NYUv2 with RGB only
+python tools/train_net.py --config-file "configs/NYUBaseline.yaml"
+
+# Multiple GPU training on NYUv2 with RGB only
+export CUDA_VISIBLE_DEVICES=0,1,2,3
+python -m torch.distributed.launch --nproc_per_node=2 tools/train_net.py --config-file "configs/NYUBaseline2GPU.yaml"
+python -m torch.distributed.launch --nproc_per_node=4 tools/train_net.py --config-file "configs/NYUBaseline4GPU.yaml"
+
+# Single GPU testing on NYUv2 with RGB only
+python tools/test_net.py --config-file "configs/NYUBaseline.yaml" --ckpt expr/nyuv2_baseline_maskrcnn/model_final.pth
+
+
+### NYUv2 Dataset - RGB-D
+
+# Single GPU training on NYUv2 with RGB-D
+python tools/train_net.py --config-file "configs/NYUDepth.yaml"
+
+# Multiple GPU training on NYUv2 with RGB-D
+export CUDA_VISIBLE_DEVICES=0,1,2,3
+python -m torch.distributed.launch --nproc_per_node=2 tools/train_net.py --config-file "configs/NYUDepth2GPU.yaml"
+python -m torch.distributed.launch --nproc_per_node=4 tools/train_net.py --config-file "configs/NYUDepth4GPU.yaml" Multiple GPU training on NYUv2 with RGB-D
+
+# Single GPU testing on NYUv2 with RGB-D
+python tools/test_net.py --config-file "configs/NYUDepth.yaml" --ckpt expr/nyu2_depth_maskrcnn/model_final.pth 
+
+
+
+### NYUv2 Dataset testing on RGB-D (p=0.5) 
+
+# Single GPU training on NYUv2 with RGB-D (p=0.5) 
+python tools/train_net.py --config-file "configs/NYUProbDepth.yaml"
+
+# Multiple GPU training on NYUv2 with RGB-D (p=0.5) 
+python -m torch.distributed.launch --nproc_per_node=2 tools/train_net.py --config-file "configs/NYUProbDepth2GPU.yaml"
+python -m torch.distributed.launch --nproc_per_node=4 tools/train_net.py --config-file "configs/NYUProbDepth4GPU.yaml" Multiple GPU training on NYUv2 with RGB-D
+
+# Single GPU testing on NYUv2 with RGB-D
+python tools/test_net.py --config-file "configs/NYUProbDepth.yaml" --ckpt expr/nyuv2_prob_depth_maskrcnn/model_final.pth
+
+### NYUv2 Dataset - RGB-D with SPADE
+
+# Single GPU training SPADE on RGB-D
+python tools/train_net.py --config-file "configs/NYUSPADE.yaml"
+
+# debug inference
+python tools/predict.py --config-file "configs/NYUSPADE_26.yaml" --ckpt "expr/nyuv2_spade_ft_2_imagenet/model_0002500.pth" --use_depth 0 OUTPUT_DIR demo/nyudebug
+python tools/predict.py --config-file "configs/NYUSPADE_inference.yaml" --ckpt "expr/nyuv2_spade_ft_2_imagenet/model_0002500.pth" --use_depth 0 OUTPUT_DIR demo/nyudebug
+
+# Inference on SPADE
+python tools/predict.py --config-file "configs/NYUSPADE_inference.yaml" --ckpt "expr/nyuv2_spade_ft_2_imagenet/model_0002500.pth" --use_depth 0 OUTPUT_DIR demo/spade_no_depth &
+python tools/predict.py --config-file "configs/NYUSPADE_inference.yaml" --ckpt "expr/nyuv2_spade_ft_2_imagenet/model_0002500.pth" --use_depth 1 OUTPUT_DIR demo/spade_depth &
+python tools/predict.py --config-file "configs/NYUBaseline_inference.yaml" --ckpt "pretrained/new_rgb_baseline_26_imagenet.pth" --use_depth 0 OUTPUT_DIR demo/rgb_baseline &
+
+# Finetune on rgb baseline
+# with imagenet pretrain
+# Stage 1: (output model_final.pth should be modified into spade_ft1_26_imagenet.pth)
+python tools/train_net.py --config-file "configs/NYUSPADEFinetune_onrgb.yaml" MODEL.WEIGHT "pretrained/rgb_baseline_26_imagenet.pth" OUTPUT_DIR "expr/nyuv2_spade_ft_1_imagenet"
+# Stage 2:
+python tools/train_net.py --config-file "configs/NYUSPADEFinetune_onspade.yaml" MODEL.WEIGHT "pretrained/spade_ft1_26_imagenet.pth" OUTPUT_DIR "expr/nyuv2_spade_ft_2_imagenet"
+
+# Multiple GPU training SPADE on RGB-D
+export CUDA_VISIBLE_DEVICES=0,1
+python -m torch.distributed.launch --master_port 13141 --nproc_per_node=2 tools/train_net.py --config-file "configs/NYUSPADE2GPU.yaml" MODEL.BACKBONE.DEPTH_PROB 0.1 OUTPUT_DIR "expr/nyuv2_spade_maskrcnn_0.1"
+export CUDA_VISIBLE_DEVICES=2,3
+python -m torch.distributed.launch --master_port 13142 --nproc_per_node=2 tools/train_net.py --config-file "configs/NYUSPADE2GPU.yaml" MODEL.BACKBONE.DEPTH_PROB 0.9 OUTPUT_DIR "expr/nyuv2_spade_maskrcnn_0.9"
+export CUDA_VISIBLE_DEVICES=0,1,2,3
+python -m torch.distributed.launch --nproc_per_node=4 tools/train_net.py --config-file "configs/NYUSPADE4GPU.yaml"
+
+# SPADE testing on RGBD
+python tools/test_net.py --config-file "configs/NYUSPADE.yaml" --use_depth 0 --ckpt modified_spade.pth OUTPUT_DIR expr/nyuv2_spade_maskrcnn_debug 
+python tools/test_net.py --config-file "configs/NYUSPADE.yaml" --use_depth 0 --ckpt expr/nyuv2_spade_maskrcnn_ft/model_0001000.pth OUTPUT_DIR expr/nyuv2_spade_maskrcnn_debug 
+
+python tools/test_net.py --use_depth 0 --config-file "configs/NYUSPADE.yaml" --ckpt expr/nyuv2_spade_maskrcnn/model_final.pth OUTPUT_DIR expr/nyuv2_spade_maskrcnn/no_depth
+python tools/test_net.py --use_depth 1 --config-file "configs/NYUSPADE.yaml" --ckpt expr/nyuv2_spade_maskrcnn/model_final.pth OUTPUT_DIR expr/nyuv2_spade_maskrcnn/depth
+
+# 0.1:0.9
+python tools/test_net.py --config-file "configs/NYUSPADE.yaml"  --use_depth 0 --ckpt expr/nyuv2_spade_maskrcnn_0.1/model_final.pth OUTPUT_DIR expr/nyuv2_spade_maskrcnn_0.1/no_depth && python tools/test_net.py --config-file "configs/NYUSPADE.yaml" --use_depth 1 --ckpt expr/nyuv2_spade_maskrcnn_0.1/model_final.pth OUTPUT_DIR expr/nyuv2_spade_maskrcnn_0.1/depth 
+
+# 0.9:0.1
+python tools/test_net.py --config-file "configs/NYUSPADE.yaml" --use_depth 0 --ckpt expr/nyuv2_spade_maskrcnn_0.9/model_final.pth OUTPUT_DIR expr/nyuv2_spade_maskrcnn_0.9/no_depth && python tools/test_net.py --config-file "configs/NYUSPADE.yaml" --use_depth 1 --ckpt expr/nyuv2_spade_maskrcnn_0.9/model_final.pth OUTPUT_DIR expr/nyuv2_spade_maskrcnn_0.9/depth 
+
+# NYU Dataset debug RGBD
+python tools/train_net.py --config-file "configs/NYUSPADEDebug.yaml"
+
+
+# densedepth not pretrained testing 
+python tools/test_net.py --use_depth 0 --config-file "configs/NYUProbDenseDepth.yaml" --ckpt expr/nyuv2_dense_depth_26_maskrcnn/model_final.pth OUTPUT_DIR expr/nyuv2_dense_depth_26_maskrcnn/no_depth
+python tools/test_net.py --use_depth 1 --config-file "configs/NYUProbDenseDepth.yaml" --ckpt expr/nyuv2_dense_depth_26_maskrcnn/model_final.pth OUTPUT_DIR expr/nyuv2_dense_depth_26_maskrcnn/depth
+
+# densedepth pretrained train 
+python tools/train_net.py --config-file "configs/NYUProbDenseDepthPretrained.yaml"
+
+# densedepth pretrained testing 
+python tools/test_net.py --use_depth 0 --config-file "configs/NYUProbDenseDepthPretrained.yaml" --ckpt expr/nyuv2_dense_depth_26_maskrcnn_pretrained/model_final.pth OUTPUT_DIR expr/nyuv2_dense_depth_26_maskrcnn_pretrained/no_depth
+python tools/test_net.py --use_depth 1 --config-file "configs/NYUProbDenseDepthPretrained.yaml" --ckpt expr/nyuv2_dense_depth_26_maskrcnn_pretrained/model_final.pth OUTPUT_DIR expr/nyuv2_dense_depth_26_maskrcnn_pretrained/depth
+
+# cocoeval
+python tools/show_coco_results.py /work/OptionalDepthPathway/maskrcnn-benchmark/expr/nyuv2_dense_depth_26_maskrcnn_pretrained/depth/inference/nyuv2_mix_depth_26_test
+python tools/show_coco_results.py /work/OptionalDepthPathway/maskrcnn-benchmark/expr/nyuv2_dense_depth_26_maskrcnn/depth/inference/nyuv2_mix_depth_26_test

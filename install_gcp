@@ -1,0 +1,28 @@
+sudo apt-get update
+sudo apt-get --assume-yes upgrade
+sudo apt-get --assume-yes install tmux build-essential gcc g++ make binutils
+sudo apt-get --assume-yes install software-properties-common unzip htop zsh graphviz
+
+wget https://repo.anaconda.com/archive/Anaconda3-2019.07-Linux-x86_64.sh
+wget https://developer.nvidia.com/compute/cuda/9.0/Prod/local_installers/cuda-repo-ubuntu1604-9-0-local_9.0.176-1_amd64-deb
+mv cuda-repo-ubuntu1604-9-0-local_9.0.176-1_amd64-deb cuda-repo-ubuntu1604-9-0-local_9.0.176-1_amd64.deb 
+sudo dpkg -i cuda-repo-ubuntu1604-9-0-local_9.0.176-1_amd64.deb
+sudo apt-key add /var/cuda-repo-9.0/7fa2af80.pub
+sudo apt-get update
+sudo apt-get install cuda
+
+#coco dataset
+wget http://images.cocodataset.org/zips/train2014.zip
+wget http://images.cocodataset.org/zips/val2014.zip
+wget http://images.cocodataset.org/zips/test2014.zip
+wget http://images.cocodataset.org/annotations/annotations_trainval2014.zip
+wget https://dl.fbaipublicfiles.com/detectron/coco/coco_annotations_minival.tgz
+unzip *.zip
+
+#NYUv2
+wget http://www.doc.ic.ac.uk/~ahanda/nyu_train_rgb.tgz
+wget http://www.doc.ic.ac.uk/~ahanda/nyu_test_rgb.tgz
+wget https://github.com/ankurhanda/nyuv2-meta-data/raw/master/train_labels_13/nyuv2_train_class13.tgz
+wget https://github.com/ankurhanda/nyuv2-meta-data/raw/master/test_labels_13/nyuv2_test_class13.tgz
+wget https://www.inf.ethz.ch/personal/ladickyl/nyu_normals_gt.zip
+wget http://horatio.cs.nyu.edu/mit/silberman/nyu_depth_v2/nyu_depth_v2_labeled.mat
